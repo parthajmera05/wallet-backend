@@ -9,7 +9,7 @@ export async function register(req, res) {
 
   try {
     const existing = await prisma.user.findUnique({ where: { email } });
-    if(existing.isDeleted){
+    if(existing && existing.isDeleted){
       const user = await prisma.user.update({
         where: { id: existing.id },
         data: { isDeleted: false }
