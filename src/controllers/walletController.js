@@ -205,6 +205,7 @@ export async function getTransactions(req, res) {
   try {
     const transactions = await prisma.transaction.findMany({
       where: {
+        isDeleted: false,
         OR: [
           { fromUserId: userId },
           { toUserId: userId }
