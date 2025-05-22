@@ -71,6 +71,35 @@ export async function getTopUsers(req, res) {
       res.status(500).json({ message: "Failed to fetch top users", error: err.message });
     }
 }
+export async function softDeleteUser(req, res) {
+  const { id } = req.params;
+
+  try {
+    const user = await prisma.user.update({
+      where: { id },
+      data: { isDeleted: true }
+    });
+
+    res.status(200).json({ message: `User ${id} soft-deleted`, user });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to delete user", error: err.message });
+  }
+}
+export async function softDeleteTransaction(req, res) {
+  const { id } = req.params;
+
+  try {
+    const tx = await prisma.transaction.update({
+      where: { id },
+      data: { isDeleted: true }
+    });
+
+    res.status(200).json({ message: `Transaction ${id} soft-deleted`, transaction: tx });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to delete transaction", error: err.message });
+  }
+}
+
   
 
 

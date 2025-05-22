@@ -13,6 +13,7 @@ export async function detectAndFlagTransaction(tx) {
     const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
     const recentTransfers = await prisma.transaction.findMany({
       where: {
+        isDeleted: false,
         fromUserId: tx.fromUserId,
         type: 'TRANSFER',
         timestamp: { gte: oneMinuteAgo }
