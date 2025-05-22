@@ -98,6 +98,76 @@ export async function withdraw(req, res) {
       res.status(500).json({ message: "Server error", error: err.message });
     }
 }
+export async function transfer(req, res) {
+    const { recipientEmail, currency, amount } = req.body;
+    const senderId = req.user.id;
+  
+    if (!recipientEmail || !currency || !amount || amount <= 0) {
+      return res.status(400).json({ message: "Invalid transfer request" });
+    }
+  
+    try {
+      // Find recipient
+      const recipient = await prisma.user.findUnique({ where: { email: recipientEmail } });
+      if (!recipient || recipient.id === senderId) {
+        return res.status(400).json({ message: "Invalid recipient" });
+      }
+  
+      // Get sender wallet
+      const senderWallet = await prisma.wallet.findUnique({ where: { userId: senderId } });
+      if (!senderWallet || !senderWallet.balances[currency] || senderWallet.balances[currency] < amount) {
+        return res.status(400).json({ message: "Insufficient balance" });
+      }
+  
+      // Get or create recipient wallet
+      let recipientWallet = await prisma.wallet.findUnique({ where: { userId: recipient.id } });
+      if (!recipientWallet) {
+        recipientWallet = await prisma.wallet.create({
+          data: {
+            userId: recipient.id,
+            balances: { [currency]: amount }
+          }
+        });
+      } else {
+        const recipientBalances = recipientWallet.balances;
+        recipientBalances[currency] = (recipientBalances[currency] || 0) + amount;
+        await prisma.wallet.update({
+          where: { userId: recipient.id },
+          data: { balances: recipientBalances }
+        });
+      }
+  
+      // Deduct from sender
+      const updatedSenderBalances = {
+        ...senderWallet.balances,
+        [currency]: senderWallet.balances[currency] - amount
+      };
+      await prisma.wallet.update({
+        where: { userId: senderId },
+        data: { balances: updatedSenderBalances }
+      });
+  
+      // Log transaction
+      await prisma.transaction.create({
+        data: {
+          fromUserId: senderId,
+          toUserId: recipient.id,
+          type: "TRANSFER",
+          currency,
+          amount
+        }
+      });
+  
+      res.status(200).json({
+        message: `Transferred ${amount} ${currency} to ${recipientEmail}`,
+        balances: updatedSenderBalances
+      });
+  
+    } catch (err) {
+      res.status(500).json({ message: "Server error", error: err.message });
+    }
+}
+  
   
 
 export async function getAllBalances(req, res) {
