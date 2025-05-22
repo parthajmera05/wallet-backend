@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-
+import { detectAndFlagTransaction } from '../services/fraudDetection.js';
 const prisma = new PrismaClient();
 
 export async function deposit(req, res) {
@@ -31,7 +31,7 @@ export async function deposit(req, res) {
       }
   
      
-      await prisma.transaction.create({
+      const transaction = await prisma.transaction.create({
         data: {
           toUserId: userId,
           type: "DEPOSIT",
@@ -39,6 +39,7 @@ export async function deposit(req, res) {
           amount
         }
       });
+      await detectAndFlagTransaction(transaction);
   
       res.status(200).json({
         message: `${amount} ${currency} deposited`,
@@ -79,8 +80,8 @@ export async function withdraw(req, res) {
         data: { balances: updatedBalances }
       });
   
-      // 🔥 Save withdraw transaction
-      await prisma.transaction.create({
+      
+      const transaction = await prisma.transaction.create({
         data: {
           fromUserId: userId,
           type: "WITHDRAW",
@@ -88,7 +89,7 @@ export async function withdraw(req, res) {
           amount
         }
       });
-  
+      await detectAndFlagTransaction(transaction);
       res.status(200).json({
         message: `${amount} ${currency} withdrawn`,
         balances: updatedWallet.balances
@@ -107,19 +108,17 @@ export async function transfer(req, res) {
     }
   
     try {
-      // Find recipient
+      
       const recipient = await prisma.user.findUnique({ where: { email: recipientEmail } });
       if (!recipient || recipient.id === senderId) {
         return res.status(400).json({ message: "Invalid recipient" });
       }
   
-      // Get sender wallet
       const senderWallet = await prisma.wallet.findUnique({ where: { userId: senderId } });
       if (!senderWallet || !senderWallet.balances[currency] || senderWallet.balances[currency] < amount) {
         return res.status(400).json({ message: "Insufficient balance" });
       }
   
-      // Get or create recipient wallet
       let recipientWallet = await prisma.wallet.findUnique({ where: { userId: recipient.id } });
       if (!recipientWallet) {
         recipientWallet = await prisma.wallet.create({
@@ -137,7 +136,6 @@ export async function transfer(req, res) {
         });
       }
   
-      // Deduct from sender
       const updatedSenderBalances = {
         ...senderWallet.balances,
         [currency]: senderWallet.balances[currency] - amount
@@ -147,8 +145,7 @@ export async function transfer(req, res) {
         data: { balances: updatedSenderBalances }
       });
   
-      // Log transaction
-      await prisma.transaction.create({
+      const transaction = await prisma.transaction.create({
         data: {
           fromUserId: senderId,
           toUserId: recipient.id,
@@ -157,7 +154,7 @@ export async function transfer(req, res) {
           amount
         }
       });
-  
+      await detectAndFlagTransaction(transaction);
       res.status(200).json({
         message: `Transferred ${amount} ${currency} to ${recipientEmail}`,
         balances: updatedSenderBalances
