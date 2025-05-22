@@ -4,4 +4,4 @@ This is a RESTful API for a digital wallet system that supports user registratio
 
 ## 📚 Live Documentation
 
-🔗 **Postman Documentation:** "https://documenter.getpostman.com/view/30139553/2sB2qaiMaw"
+🔗 **Postman Documentation:** https://documenter.getpostman.com/view/30139553/2sB2qaiMaw
