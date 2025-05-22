@@ -32,30 +32,36 @@ export async function getTotalUserBalances(req, res) {
 }
 export async function getTopUsers(req, res) {
     try {
-      // 1. Top users by balance (summing all currencies)
-      const wallets = await prisma.wallet.findMany({
-        include: { user: true }
-      });
+      const wallets = await prisma.wallet.findMany({ include: { user: true } });
   
       const usersWithBalance = wallets.map(w => {
         const total = Object.values(w.balances || {}).reduce((a, b) => a + b, 0);
         return { user: w.user, totalBalance: total };
       }).sort((a, b) => b.totalBalance - a.totalBalance);
-  
-      // 2. Top users by transaction count
       const txCounts = await prisma.transaction.groupBy({
         by: ['fromUserId'],
-        _count: { _all: true },
-        orderBy: { _count: { _all: 'desc' } },
+        _count: true,
+        orderBy: {
+          _count: {
+            fromUserId: 'desc'
+          }
+        },
         take: 5
       });
+      
   
       const topByTxVolume = await Promise.all(
-        txCounts.map(async (entry) => {
-          const user = await prisma.user.findUnique({ where: { id: entry.fromUserId } });
-          return { user, transactionCount: entry._count._all };
-        })
+        txCounts
+          .filter(entry => entry.fromUserId !== null)
+          .map(async (entry) => {
+            const user = await prisma.user.findUnique({ where: { id: entry.fromUserId } });
+            return {
+              user,
+              transactionCount: entry._count
+            };
+          })
       );
+      
   
       res.status(200).json({
         topUsersByBalance: usersWithBalance.slice(0, 5),
@@ -65,6 +71,8 @@ export async function getTopUsers(req, res) {
       res.status(500).json({ message: "Failed to fetch top users", error: err.message });
     }
 }
+  
+
 
   
   

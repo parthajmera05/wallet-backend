@@ -8,8 +8,6 @@ const router = express.Router();
 
 router.post('/register', adminRegister);
 router.post('/login', adminLogin);
-
-
 router.get('/flagged-transactions', authenticateAdmin, getFlaggedTransactions);
 router.get('/total-balances', authenticateAdmin, getTotalUserBalances);
 router.get('/top-users', authenticateAdmin, getTopUsers);

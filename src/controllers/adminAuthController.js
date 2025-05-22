@@ -3,8 +3,6 @@ import bcrypt from 'bcrypt';
 import { generateToken } from '../utils/jwt.js';
 
 const prisma = new PrismaClient();
-
-// POST /admin/register
 export async function adminRegister(req, res) {
   const { email, password } = req.body;
 
@@ -24,8 +22,6 @@ export async function adminRegister(req, res) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 }
-
-// POST /admin/login
 export async function adminLogin(req, res) {
   const { email, password } = req.body;
 
