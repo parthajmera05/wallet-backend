@@ -34,10 +34,26 @@ export async function getTopUsers(req, res) {
     try {
       const wallets = await prisma.wallet.findMany({ include: { user: true } });
   
-      const usersWithBalance = wallets.map(w => {
-        const total = Object.values(w.balances || {}).reduce((a, b) => a + b, 0);
-        return { user: w.user, totalBalance: total };
-      }).sort((a, b) => b.totalBalance - a.totalBalance);
+      const topUsersPerCurrency = {};
+
+      for (const wallet of wallets) {
+        const balances = wallet.balances || {};
+        const user = wallet.user;
+
+        for (const [currency, amount] of Object.entries(balances)) {
+          if (!topUsersPerCurrency[currency]) {
+            topUsersPerCurrency[currency] = [];
+          }
+
+          topUsersPerCurrency[currency].push({ user, balance: amount });
+        }
+      }
+
+      
+      for (const currency in topUsersPerCurrency) {
+        topUsersPerCurrency[currency].sort((a, b) => b.balance - a.balance);
+        topUsersPerCurrency[currency] = topUsersPerCurrency[currency].slice(0, 5);
+      }
       const txCounts = await prisma.transaction.groupBy({
         by: ['fromUserId'],
         _count: true,
@@ -64,7 +80,7 @@ export async function getTopUsers(req, res) {
       
   
       res.status(200).json({
-        topUsersByBalance: usersWithBalance.slice(0, 5),
+        topUsersByCurrency: topUsersPerCurrency,
         topUsersByTransactionVolume: topByTxVolume
       });
     } catch (err) {
